@@ -1,5 +1,4 @@
-
-from flask import Flask, render_template, request, redirect, session, url_for, jsonify
+from flask import Flask, render_template, request, redirect, session, jsonify
 import random, json, time, os
 
 app = Flask(__name__)
@@ -58,13 +57,20 @@ def bet():
     users = load_data(DATA_FILE, {})
     user = session["username"]
     choice = request.form["choice"]
-    amount = int(request.form["amount"])
+
+    amount_str = request.form.get("amount", "").replace(",", "").strip()
+    if not amount_str.isdigit():
+        return "Số tiền không hợp lệ"
+
+    amount = int(amount_str)
     if amount <= 0 or amount > users[user]["money"]:
         return "Số tiền không hợp lệ"
+
     result = random.choice(["Tài", "Xỉu"])
     win = (choice == result)
     users[user]["money"] += amount if win else -amount
     save_data(DATA_FILE, users)
+
     results = load_data(RESULTS_FILE, [])
     results.append({"result": result, "time": time.strftime("%H:%M:%S")})
     save_data(RESULTS_FILE, results)

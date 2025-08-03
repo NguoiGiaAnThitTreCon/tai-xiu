@@ -1,0 +1,59 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Game Tài Xỉu</title>
+</head>
+<body>
+  <h2>Chào {{ username }} - Số dư: {{ "{:,}".format(money) }} VNĐ</h2>
+  <form method="post" action="/bet">
+    <input type="number" name="amount" placeholder="Số tiền">
+    <button name="choice" value="Tài">Đặt Tài</button>
+    <button name="choice" value="Xỉu">Đặt Xỉu</button>
+  </form>
+  <h3>Lịch sử kết quả:</h3>
+  <ul>
+    {% for r in results %}
+      <li>{{ r.time }} - {{ r.result }}</li>
+    {% endfor %}
+  </ul>
+  <h3>Bảng xếp hạng:</h3>
+  <ol>
+    {% for u, info in leaderboard %}
+      <li>{{ u }} - {{ "{:,}".format(info.money) }} VNĐ</li>
+    {% endfor %}
+  </ol>
+  <h3>Chat:</h3>
+  <form method="post" action="/chat">
+    <input name="message" placeholder="Nhập tin nhắn">
+    <button>Gửi</button>
+  </form>
+  <ul id="chatbox"></ul>
+
+  <audio autoplay loop id="bgmusic">
+    <source src="{{ url_for('static', filename='music.mp3') }}" type="audio/mpeg">
+  </audio>
+  <button onclick="toggleMusic()">🔊 Tắt/Bật Nhạc</button>
+
+  <script>
+    function toggleMusic() {
+      var music = document.getElementById("bgmusic");
+      if (music.paused) music.play();
+      else music.pause();
+    }
+    function fetchChat() {
+      fetch("/get_chat").then(res => res.json()).then(data => {
+        const chatbox = document.getElementById("chatbox");
+        chatbox.innerHTML = "";
+        for (let item of data) {
+          const li = document.createElement("li");
+          li.textContent = item.user + ": " + item.msg;
+          chatbox.appendChild(li);
+        }
+      });
+    }
+    setInterval(fetchChat, 2000);
+    fetchChat();
+  </script>
+</body>
+</html>

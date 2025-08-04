@@ -1,5 +1,7 @@
-from flask import Flask, render_template, request, redirect, session, jsonify
-import random, json, time, os
+from flask import Flask, render_template, request, redirect, session, jsonify, url_for
+import json, os
+from game_state import game_state
+from threading import Lock
 
 app = Flask(__name__)
 app.secret_key = "taixiu_secret_key"
@@ -7,6 +9,7 @@ app.secret_key = "taixiu_secret_key"
 DATA_FILE = "users.json"
 RESULTS_FILE = "results.json"
 CHAT_FILE = "chat.json"
+lock = Lock()
 
 def load_data(file, default):
     if not os.path.exists(file): return default
@@ -42,39 +45,45 @@ def register():
         return redirect("/")
     return render_template("register.html")
 
-@app.route("/home", methods=["GET", "POST"])
+@app.route("/logout")
+def logout():
+    session.clear()
+    return redirect("/")
+
+@app.route("/home")
 def home():
-    if "username" not in session: return redirect("/")
-    users = load_data(DATA_FILE, {})
-    results = load_data(RESULTS_FILE, [])
-    leaderboard = sorted(users.items(), key=lambda x: x[1]["money"], reverse=True)[:5]
-    return render_template("index.html", username=session["username"], money=users[session["username"]]["money"],
-                           results=results[-10:], leaderboard=leaderboard)
+    if "username" not in session:
+        return redirect("/")
+    return render_template("index.html", username=session["username"])
 
 @app.route("/bet", methods=["POST"])
 def bet():
-    if "username" not in session: return redirect("/")
-    users = load_data(DATA_FILE, {})
+    if "username" not in session:
+        return redirect("/")
     user = session["username"]
     choice = request.form["choice"]
+    amount = int(request.form["amount"].replace(",", ""))
 
-    amount_str = request.form.get("amount", "").replace(",", "").strip()
-    if not amount_str.isdigit():
-        return "Số tiền không hợp lệ"
+    with lock:
+        users = load_data(DATA_FILE, {})
+        if user not in users or users[user]["money"] < amount or amount <= 0:
+            return "Số tiền không hợp lệ"
+        if game_state["current_round"]["ended"]:
+            return "Phiên đã kết thúc, vui lòng chờ phiên tiếp theo"
+        game_state["current_round"]["bets"].append({"user": user, "choice": choice, "amount": amount})
+        return redirect("/home")
 
-    amount = int(amount_str)
-    if amount <= 0 or amount > users[user]["money"]:
-        return "Số tiền không hợp lệ"
-
-    result = random.choice(["Tài", "Xỉu"])
-    win = (choice == result)
-    users[user]["money"] += amount if win else -amount
-    save_data(DATA_FILE, users)
-
-    results = load_data(RESULTS_FILE, [])
-    results.append({"result": result, "time": time.strftime("%H:%M:%S")})
-    save_data(RESULTS_FILE, results)
-    return redirect("/home")
+@app.route("/get_game_state")
+def get_game_state():
+    with lock:
+        return jsonify({
+            "time_left": game_state["time_left"],
+            "result": game_state.get("last_result", {}),
+            "username": session.get("username"),
+            "money": load_data(DATA_FILE, {}).get(session.get("username"), {}).get("money", 0),
+            "leaderboard": sorted(load_data(DATA_FILE, {}).items(), key=lambda x: x[1]["money"], reverse=True)[:5],
+            "results": load_data(RESULTS_FILE, [])[-10:]
+        })
 
 @app.route("/chat", methods=["POST"])
 def chat():
@@ -91,4 +100,7 @@ def get_chat():
     return jsonify(chat_log[-10:])
 
 if __name__ == "__main__":
+    from threading import Thread
+    from game_state import start_game_loop
+    Thread(target=start_game_loop, daemon=True).start()
     app.run(debug=True)

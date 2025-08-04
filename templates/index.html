@@ -1,11 +1,135 @@
 <!DOCTYPE html>
-<html><head><title>Tài Xỉu</title></head><body>
-<h1>Chào mừng đến với game Tài Xỉu</h1>
-<div id='result'></div>
-<script>
-setInterval(() => {
- fetch('/get_game_state').then(r => r.json()).then(data => {
-   document.getElementById('result').innerText = `⏱️ Còn lại: ${data.time_left}s | KQ: ${data.result?.outcome || '-'}`
- })
-}, 1000)
-</script></body></html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <title>Trang chính</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <script>
+    // Lấy tin nhắn chat mới mỗi 2 giây
+    setInterval(() => {
+      fetch("/get_chat")
+        .then(res => res.json())
+        .then(data => {
+          const chatBox = document.getElementById("chat-box");
+          chatBox.innerHTML = "";
+          data.forEach(entry => {
+            const p = document.createElement("p");
+            p.innerHTML = `<strong>${entry.user}:</strong> ${entry.msg}`;
+            chatBox.appendChild(p);
+          });
+          chatBox.scrollTop = chatBox.scrollHeight;
+        });
+    }, 2000);
+  </script>
+</head>
+<body class="bg-light">
+  <div class="container py-5">
+    <h2 class="text-center mb-4">Chào, {{ username }}! (Số dư: {{ money }} VNĐ)</h2>
+
+    <!-- Đặt cược -->
+    <div class="card p-3 mb-4 shadow-sm">
+      <h5>Đặt cược</h5>
+      <form method="POST" action="/bet" class="row g-2 align-items-center">
+        <div class="col-md-3">
+          <select name="choice" class="form-select" required>
+            <option value="Tài">Tài</option>
+            <option value="Xỉu">Xỉu</option>
+          </select>
+        </div>
+        <div class="col-md-4">
+          <input type="text" name="amount" placeholder="Số tiền" class="form-control" required>
+        </div>
+        <div class="col-md-2">
+          <button type="submit" class="btn btn-primary w-100">Đặt</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Kết quả gần đây và Bảng xếp hạng -->
+    <div class="row mb-4">
+      <div class="col-md-6">
+        <div class="card p-3 shadow-sm">
+          <h5>Kết quả gần đây</h5>
+          <ul class="list-group">
+            {% for r in results %}
+              <li class="list-group-item d-flex justify-content-between">
+                <span>{{ r.result }}</span>
+                <small class="text-muted">{{ r.time }}</small>
+              </li>
+            {% endfor %}
+          </ul>
+        </div>
+      </div>
+
+      <div class="col-md-6">
+        <div class="card p-3 shadow-sm">
+          <h5>Bảng xếp hạng (Top 5)</h5>
+          <ol class="list-group list-group-numbered">
+            {% for name, data in leaderboard %}
+              <li class="list-group-item d-flex justify-content-between align-items-center">
+                {{ name }}
+                <span>{{ data.money }} VNĐ</span>
+              </li>
+            {% endfor %}
+          </ol>
+        </div>
+      </div>
+    </div>
+
+    <!-- Chat -->
+    <div class="card p-3 shadow-sm">
+      <h5>Chat</h5>
+      <div id="chat-box" style="height: 200px; overflow-y: scroll; background-color: #f8f9fa;" class="p-2 mb-3 border"></div>
+      <form method="POST" action="/chat" class="d-flex">
+        <input type="text" name="message" class="form-control me-2" placeholder="Nhập tin nhắn..." required>
+        <button type="submit" class="btn btn-outline-secondary">Gửi</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Nhạc nền -->
+  <audio id="bg-music" loop>
+    <source src="{{ url_for('static', filename='music.mp3') }}" type="audio/mpeg">
+    Trình duyệt không hỗ trợ phát nhạc.
+  </audio>
+
+  <!-- Nút bật/tắt nhạc -->
+  <div class="position-fixed bottom-0 end-0 m-4">
+    <button id="toggle-music" class="btn btn-outline-primary">🔈 Bật nhạc</button>
+  </div>
+
+  <!-- Script điều khiển nhạc -->
+  <script>
+    const music = document.getElementById("bg-music");
+    const toggleBtn = document.getElementById("toggle-music");
+    let isPlaying = false;
+
+    // Khi nhấn nút bật/tắt
+    toggleBtn.addEventListener("click", () => {
+      if (isPlaying) {
+        music.pause();
+        toggleBtn.innerHTML = "🔈 Bật nhạc";
+      } else {
+        music.play();
+        toggleBtn.innerHTML = "🔇 Tắt nhạc";
+      }
+      isPlaying = !isPlaying;
+    });
+
+    // Tự động phát nhạc sau lần click đầu tiên
+    const autoPlayMusic = () => {
+      if (!isPlaying) {
+        music.play().then(() => {
+          isPlaying = true;
+          toggleBtn.innerHTML = "🔇 Tắt nhạc";
+        }).catch(() => {
+          console.warn("Tự động phát bị chặn");
+        });
+      }
+      document.removeEventListener("click", autoPlayMusic);
+    };
+
+    document.addEventListener("click", autoPlayMusic, { once: true });
+  </script>
+</body>
+</html>

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="vi" data-bs-theme="light">
 <head>
   <meta charset="UTF-8">
   <title>Trang chính</title>
@@ -22,9 +22,15 @@
     }, 2000);
   </script>
 </head>
-<body class="bg-light">
-  <div class="container py-5">
-    <h2 class="text-center mb-4">Chào, {{ username }}! (Số dư: {{ money }} VNĐ)</h2>
+<body class="bg-body text-body">
+  <div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <h2>Chào, {{ username }}! (Số dư: {{ money }} VNĐ)</h2>
+      <div>
+        <button id="toggle-dark" class="btn btn-outline-dark me-2">🌓 Chế độ tối</button>
+        <a href="/logout" class="btn btn-danger">Đăng xuất</a>
+      </div>
+    </div>
 
     <!-- Đặt cược -->
     <div class="card p-3 mb-4 shadow-sm">
@@ -98,21 +104,46 @@
     <button id="toggle-music" class="btn btn-outline-primary">🔈 Bật nhạc</button>
   </div>
 
-  <!-- Script điều khiển nhạc -->
+  <!-- Script: bật/tắt nhạc + dark mode -->
   <script>
     const music = document.getElementById("bg-music");
-    const toggleBtn = document.getElementById("toggle-music");
+    const toggleMusicBtn = document.getElementById("toggle-music");
     let isPlaying = false;
 
-    toggleBtn.addEventListener("click", () => {
+    toggleMusicBtn.addEventListener("click", () => {
       if (isPlaying) {
         music.pause();
-        toggleBtn.innerHTML = "🔈 Bật nhạc";
+        toggleMusicBtn.innerHTML = "🔈 Bật nhạc";
       } else {
         music.play();
-        toggleBtn.innerHTML = "🔇 Tắt nhạc";
+        toggleMusicBtn.innerHTML = "🔇 Tắt nhạc";
       }
       isPlaying = !isPlaying;
+    });
+
+    // Tự động phát nhạc sau click đầu tiên
+    const autoPlayMusic = () => {
+      if (!isPlaying) {
+        music.play().then(() => {
+          isPlaying = true;
+          toggleMusicBtn.innerHTML = "🔇 Tắt nhạc";
+        }).catch(() => {
+          console.warn("Tự động phát bị chặn");
+        });
+      }
+      document.removeEventListener("click", autoPlayMusic);
+    };
+    document.addEventListener("click", autoPlayMusic, { once: true });
+
+    // Toggle dark mode
+    const toggleDark = document.getElementById("toggle-dark");
+    const html = document.documentElement;
+    let dark = false;
+
+    toggleDark.addEventListener("click", () => {
+      dark = !dark;
+      html.setAttribute("data-bs-theme", dark ? "dark" : "light");
+      toggleDark.innerHTML = dark ? "☀️ Chế độ sáng" : "🌓 Chế độ tối";
     });
   </script>
 </body>

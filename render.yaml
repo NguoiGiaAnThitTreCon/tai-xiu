@@ -2,8 +2,5 @@ services:
   - type: web
     name: tai-xiu
     env: python
-    region: singapore
-    plan: free
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn start_server:app
-    autoDeploy: true
+    startCommand: gunicorn -k eventlet -w 1 start_server:app
